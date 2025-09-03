@@ -274,39 +274,45 @@ export default function Home() {
 
   return (
     <div className="bg-gray-900 text-white min-h-screen flex flex-col">
-      <header className="w-full py-4 px-6 bg-gray-800 shadow-md relative flex justify-between items-center">
-        {/* Left section: logo and EthXpose title */}
-        <div className="flex items-start space-x-2">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 256 417"
-            className="w-10 h-10"
-          >
-            <path fill="#343434" d="M127.6 0L127.6 279.4 0 208.3z" />
-            <path fill="#8C8C8C" d="M127.6 0L256 208.3 127.6 279.4z" />
-            <path fill="#3C3C3B" d="M127.6 320.5L127.6 417 0 261.2z" />
-            <path fill="#8C8C8C" d="M127.6 417L256 261.2 127.6 320.5z" />
-            <path fill="#141414" d="M127.6 279.4L0 208.3 127.6 160.8z" />
-            <path fill="#393939" d="M127.6 160.8L256 208.3 127.6 279.4z" />
-          </svg>
-          <div>
-            <h1 className="text-3xl font-bold">EthXpose</h1>
-            <p className="text-xs text-gray-400">Detect Fraudulent Ethereum wallets</p>
+      <header className="w-full py-3 px-4 bg-gray-800 shadow-md">
+        {/* Mobile-first responsive header */}
+        <div className="flex flex-col items-center space-y-2 sm:flex-row sm:justify-between sm:items-center sm:space-y-0">
+          {/* Logo and EthXpose title */}
+          <div className="flex items-center space-x-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 256 417"
+              className="w-8 h-8 sm:w-10 sm:h-10"
+            >
+              <path fill="#343434" d="M127.6 0L127.6 279.4 0 208.3z" />
+              <path fill="#8C8C8C" d="M127.6 0L256 208.3 127.6 279.4z" />
+              <path fill="#3C3C3B" d="M127.6 320.5L127.6 417 0 261.2z" />
+              <path fill="#8C8C8C" d="M127.6 417L256 261.2 127.6 320.5z" />
+              <path fill="#141414" d="M127.6 279.4L0 208.3 127.6 160.8z" />
+              <path fill="#393939" d="M127.6 160.8L256 208.3 127.6 279.4z" />
+            </svg>
+            <div>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">EthXpose</h1>
+              <p className="text-xs text-gray-400 hidden sm:block">Detect Fraudulent Ethereum wallets</p>
+            </div>
           </div>
-        </div>
-        {/* Center section */}
-        <div className="absolute left-1/2 top-0 transform -translate-x-1/2 flex items-center h-full">
-          <h2 className="text-3xl font-bold">
-            Ethereum Wallet Fraud Detection
-          </h2>
+          
+          {/* Main title - responsive */}
+          <div className="text-center sm:text-left">
+            <h2 className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold leading-tight">
+              <span className="block sm:hidden">Ethereum Wallet</span>
+              <span className="block sm:hidden">Fraud Detection</span>
+              <span className="hidden sm:block">Ethereum Wallet Fraud Detection</span>
+            </h2>
+          </div>
         </div>
       </header>
 
-      <main className="flex-grow flex flex-col items-center justify-start px-4 space-y-6">
+      <main className="flex-grow flex flex-col items-center justify-start px-2 sm:px-4 space-y-4 sm:space-y-6">
         {classificationResult && (
-          <div className="mt-6 text-center">
+          <div className="mt-4 sm:mt-6 text-center px-2">
             <p 
-              className="text-xl font-semibold"
+              className="text-lg sm:text-xl font-semibold"
               style={{ color: getFraudColor(classificationResult.fraud_probability).color }}
             >
               Fraud Probability: {(classificationResult.fraud_probability * 100).toFixed(2)}%
@@ -321,22 +327,22 @@ export default function Home() {
         )}
         <svg
           id="graph"
-          className="mt-8 w-full"
-          height="600"
+          className="mt-4 sm:mt-8 w-full max-w-full"
+          height="400"
           viewBox="0 0 800 600"
           preserveAspectRatio="xMidYMid meet"
         />
       </main>
 
-      <footer className="w-full py-6 bg-gray-800 shadow-md text-center">
-        <div className="flex flex-col items-center space-y-4 w-full max-w-4xl mx-auto px-4">
-          <div className="flex items-center space-x-4 w-full max-w-4xl justify-center">
-            <div className="relative">
+      <footer className="w-full py-4 sm:py-6 bg-gray-800 shadow-md text-center">
+        <div className="flex flex-col items-center space-y-3 sm:space-y-4 w-full max-w-4xl mx-auto px-2 sm:px-4">
+          <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4 w-full justify-center">
+            <div className="relative w-full sm:w-auto">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 256 417"
-                  className="w-5 h-5 text-gray-400"
+                  className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400"
                 >
                   <path fill="currentColor" d="M127.6 0L127.6 279.4 0 208.3z" />
                   <path fill="currentColor" d="M127.6 0L256 208.3 127.6 279.4z" />
@@ -356,22 +362,22 @@ export default function Home() {
                   }
                 }}
                 placeholder="Enter wallet address"
-                className="w-[calc(42ch)] py-3 pl-10 pr-4 rounded-lg bg-gray-800 text-gray-300 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full sm:w-[calc(42ch)] py-3 pl-10 pr-4 rounded-lg bg-gray-800 text-gray-300 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm sm:text-base"
               />
             </div>
             <button
               onClick={classifyWallet}
               disabled={!walletAddress || !isValidEthereumAddress(walletAddress)}
-              className="w-[calc(13ch)] py-3 px-4 bg-green-500 text-white rounded-lg shadow-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:bg-gray-500 disabled:cursor-not-allowed"
+              className="w-full sm:w-[calc(13ch)] py-3 px-4 bg-green-500 text-white rounded-lg shadow-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:bg-gray-500 disabled:cursor-not-allowed text-sm sm:text-base"
             >
               Check Wallet
             </button>
           </div>
-          <p className="text-center text-gray-300 text-sm w-full max-w-4xl">
+          <p className="text-center text-gray-300 text-xs sm:text-sm w-full max-w-4xl px-2">
             Enter a wallet address to classify its fraud probability and view the
             transaction graph.
           </p>
-          {error && <p className="text-red-500">{error}</p>}
+          {error && <p className="text-red-500 text-sm px-2">{error}</p>}
         </div>
       </footer>
     </div>
