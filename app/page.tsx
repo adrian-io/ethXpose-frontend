@@ -21,7 +21,7 @@ interface EdgeDatum {
 }
 
 export default function Home() {
-  const [walletAddress, setWalletAddress] = useState("");
+  const [walletAddress, setWalletAddress] = useState("0x0a888f0f0b772e17a2adfd62d3f15cec72c8d42f");
   const [classificationResult, setClassificationResult] = useState<{
     fraud_probability: number;
     graph: {
