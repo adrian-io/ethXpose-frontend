@@ -31,6 +31,12 @@ export default function Home() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const getFraudColor = (probability: number) => {
+    if (probability < 0.25) return { color: '#22c55e', label: 'Low Risk', emoji: '😊' }; // Green (bg-green-500)
+    if (probability < 0.75) return { color: '#f59e0b', label: 'Medium Risk', emoji: '🤔' }; // Orange/Yellow
+    return { color: '#ef4444', label: 'High Risk', emoji: '😈' }; // Red
+  };
+
   const classifyWallet = async () => {
     setError(null);
     setClassificationResult(null);
@@ -81,26 +87,125 @@ export default function Home() {
       .attr("stroke-opacity", 0.6)
       .attr("stroke-width", 2);
 
-    const linkLabels = svg
+    // Create tooltip for edge labels (hidden by default)
+    const edgeTooltip = svg
       .append("g")
       .selectAll("text")
       .data(classificationResult.graph.edges)
       .enter()
       .append("text")
-      .attr("font-size", "10px")
-      .attr("fill", "#555")
-      .text((d: EdgeDatum) => `Value: ${d.value}, Timestamp: ${d.timestamp}`);
+      .attr("font-size", "11px")
+      .attr("fill", "#e5e7eb")
+      .attr("text-anchor", "middle")
+      .attr("opacity", 0)
+      .text((d: EdgeDatum) => `${d.value} ETH • ${new Date(d.timestamp).toLocaleDateString()}`);
 
-    const node = svg
+    // Create circles for non-central nodes
+    const otherNodes = svg
       .append("g")
       .selectAll("circle")
-      .data(classificationResult.graph.nodes)
+      .data(classificationResult.graph.nodes.filter((d: NodeDatum) => d.label.toLowerCase() !== walletAddress.toLowerCase()))
       .enter()
       .append("circle")
-      .attr("r", 10)
-      .attr("fill", "#4caf50")
-      .attr("stroke", "#1b5e20")
-      .attr("stroke-width", 1.5)
+      .attr("r", 12)
+      .attr("fill", "#6b7280") // Neutral gray for other nodes
+      .attr("stroke", "#374151") // Darker gray stroke for other nodes
+      .attr("stroke-width", 2);
+
+    // Create emoji for central node
+    const centralNode = svg
+      .append("g")
+      .selectAll("text")
+      .data(classificationResult.graph.nodes.filter((d: NodeDatum) => d.label.toLowerCase() === walletAddress.toLowerCase()))
+      .enter()
+      .append("text")
+      .attr("font-size", "24px")
+      .attr("text-anchor", "middle")
+      .attr("dy", "0.35em")
+      .text((d: NodeDatum) => getFraudColor(classificationResult.fraud_probability).emoji)
+      .on("mouseover", function(event: any, d: NodeDatum) {
+        // Highlight connected edges
+        link
+          .transition()
+          .duration(200)
+          .attr("stroke-opacity", (edgeData: EdgeDatum) => {
+            const source = (edgeData.source as NodeDatum).label || edgeData.source;
+            const target = (edgeData.target as NodeDatum).label || edgeData.target;
+            return (source === d.label || target === d.label) ? 1 : 0.2;
+          })
+          .attr("stroke-width", (edgeData: EdgeDatum) => {
+            const source = (edgeData.source as NodeDatum).label || edgeData.source;
+            const target = (edgeData.target as NodeDatum).label || edgeData.target;
+            return (source === d.label || target === d.label) ? 3 : 2;
+          });
+        
+        // Show edge labels for connected edges
+        edgeTooltip
+          .transition()
+          .duration(200)
+          .attr("opacity", (edgeData: EdgeDatum) => {
+            const source = (edgeData.source as NodeDatum).label || edgeData.source;
+            const target = (edgeData.target as NodeDatum).label || edgeData.target;
+            return (source === d.label || target === d.label) ? 1 : 0;
+          });
+      })
+      .on("mouseout", function(event: any, d: NodeDatum) {
+        // Reset edge appearance
+        link
+          .transition()
+          .duration(200)
+          .attr("stroke-opacity", 0.6)
+          .attr("stroke-width", 2);
+        
+        // Hide edge labels
+        edgeTooltip
+          .transition()
+          .duration(200)
+          .attr("opacity", 0);
+      });
+
+    // Add hover interactions to all nodes
+    otherNodes
+      .on("mouseover", function(event: any, d: NodeDatum) {
+        // Highlight connected edges
+        link
+          .transition()
+          .duration(200)
+          .attr("stroke-opacity", (edgeData: EdgeDatum) => {
+            const source = (edgeData.source as NodeDatum).label || edgeData.source;
+            const target = (edgeData.target as NodeDatum).label || edgeData.target;
+            return (source === d.label || target === d.label) ? 1 : 0.2;
+          })
+          .attr("stroke-width", (edgeData: EdgeDatum) => {
+            const source = (edgeData.source as NodeDatum).label || edgeData.source;
+            const target = (edgeData.target as NodeDatum).label || edgeData.target;
+            return (source === d.label || target === d.label) ? 3 : 2;
+          });
+        
+        // Show edge labels for connected edges
+        edgeTooltip
+          .transition()
+          .duration(200)
+          .attr("opacity", (edgeData: EdgeDatum) => {
+            const source = (edgeData.source as NodeDatum).label || edgeData.source;
+            const target = (edgeData.target as NodeDatum).label || edgeData.target;
+            return (source === d.label || target === d.label) ? 1 : 0;
+          });
+      })
+      .on("mouseout", function(event: any, d: NodeDatum) {
+        // Reset edge appearance
+        link
+          .transition()
+          .duration(200)
+          .attr("stroke-opacity", 0.6)
+          .attr("stroke-width", 2);
+        
+        // Hide edge labels
+        edgeTooltip
+          .transition()
+          .duration(200)
+          .attr("opacity", 0);
+      })
       .call(
         d3
           .drag<SVGCircleElement, NodeDatum>()
@@ -120,16 +225,22 @@ export default function Home() {
           })
       );
 
+    // Create node labels (always visible)
     const nodeLabels = svg
       .append("g")
       .selectAll("text")
       .data(classificationResult.graph.nodes)
       .enter()
       .append("text")
-      .attr("font-size", "12px")
-      .attr("fill", "#cfd8dc")
+      .attr("font-size", "10px")
+      .attr("fill", (d: NodeDatum) => {
+        if (d.label.toLowerCase() === walletAddress.toLowerCase()) {
+          return getFraudColor(classificationResult.fraud_probability).color;
+        }
+        return "#d1d5db"; // Light gray for other nodes
+      })
       .attr("text-anchor", "middle")
-      .attr("dy", -15)
+      .attr("dy", -25)
       .text((d: NodeDatum) => d.label);
 
     simulation.on("tick", () => {
@@ -139,7 +250,7 @@ export default function Home() {
         .attr("x2", (d: EdgeDatum) => ((d.target as unknown) as NodeDatum).x!)
         .attr("y2", (d: EdgeDatum) => ((d.target as unknown) as NodeDatum).y!);
 
-      linkLabels
+      edgeTooltip
         .attr("x", (d: EdgeDatum) =>
           ((((d.source as unknown) as NodeDatum).x! +
             ((d.target as unknown) as NodeDatum).x!) /
@@ -151,7 +262,11 @@ export default function Home() {
             2)
         );
 
-      node.attr("cx", (d: NodeDatum) => d.x as number).attr("cy", (d: NodeDatum) => d.y as number);
+      // Position circles for other nodes
+      otherNodes.attr("cx", (d: NodeDatum) => d.x as number).attr("cy", (d: NodeDatum) => d.y as number);
+      
+      // Position emoji for central node
+      centralNode.attr("x", (d: NodeDatum) => d.x as number).attr("y", (d: NodeDatum) => d.y as number);
 
       nodeLabels.attr("x", (d: NodeDatum) => d.x as number).attr("y", (d: NodeDatum) => d.y as number);
     });
@@ -189,10 +304,20 @@ export default function Home() {
 
       <main className="flex-grow flex flex-col items-center justify-start px-4 space-y-6">
         {classificationResult && (
-          <p className="text-xl font-semibold text-green-400 mt-6">
-            Fraud Probability:{" "}
-            {(classificationResult.fraud_probability * 100).toFixed(2)}%
-          </p>
+          <div className="mt-6 text-center">
+            <p 
+              className="text-xl font-semibold"
+              style={{ color: getFraudColor(classificationResult.fraud_probability).color }}
+            >
+              Fraud Probability: {(classificationResult.fraud_probability * 100).toFixed(2)}%
+            </p>
+            <p 
+              className="text-sm font-medium mt-1"
+              style={{ color: getFraudColor(classificationResult.fraud_probability).color }}
+            >
+              {getFraudColor(classificationResult.fraud_probability).label}
+            </p>
+          </div>
         )}
         <svg
           id="graph"
@@ -206,13 +331,34 @@ export default function Home() {
       <footer className="w-full py-6 bg-gray-800 shadow-md text-center">
         <div className="flex flex-col items-center space-y-4 w-full max-w-4xl mx-auto px-4">
           <div className="flex items-center space-x-4 w-full max-w-4xl justify-center">
-            <input
-              type="text"
-              value={walletAddress}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setWalletAddress(e.target.value)}
-              placeholder="Enter wallet address"
-              className="w-[calc(42ch)] py-3 px-4 rounded-lg bg-gray-800 text-gray-300 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 256 417"
+                  className="w-5 h-5 text-gray-400"
+                >
+                  <path fill="currentColor" d="M127.6 0L127.6 279.4 0 208.3z" />
+                  <path fill="currentColor" d="M127.6 0L256 208.3 127.6 279.4z" />
+                  <path fill="currentColor" d="M127.6 320.5L127.6 417 0 261.2z" />
+                  <path fill="currentColor" d="M127.6 417L256 261.2 127.6 320.5z" />
+                  <path fill="currentColor" d="M127.6 279.4L0 208.3 127.6 160.8z" />
+                  <path fill="currentColor" d="M127.6 160.8L256 208.3 127.6 279.4z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={walletAddress}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setWalletAddress(e.target.value)}
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === 'Enter' && walletAddress && isValidEthereumAddress(walletAddress)) {
+                    classifyWallet();
+                  }
+                }}
+                placeholder="Enter wallet address"
+                className="w-[calc(42ch)] py-3 pl-10 pr-4 rounded-lg bg-gray-800 text-gray-300 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
             <button
               onClick={classifyWallet}
               disabled={!walletAddress || !isValidEthereumAddress(walletAddress)}
