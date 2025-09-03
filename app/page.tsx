@@ -35,7 +35,7 @@ export default function Home() {
     setError(null);
     setClassificationResult(null);
     try {
-      const response = await axios.post("https://ethxpose.onrender.com/api/py/classify", {
+      const response = await axios.post("/api/classify", {
         wallet_address: walletAddress,
         model_name: "first_Feather-G_RF.joblib",
       });
