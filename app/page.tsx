@@ -94,7 +94,7 @@ export default function Home() {
       .data(classificationResult.graph.edges)
       .enter()
       .append("text")
-      .attr("font-size", "11px")
+      .attr("font-size", "16px")
       .attr("fill", "#e5e7eb")
       .attr("text-anchor", "middle")
       .attr("opacity", 0)
@@ -107,7 +107,7 @@ export default function Home() {
       .data(classificationResult.graph.nodes.filter((d: NodeDatum) => d.label.toLowerCase() !== walletAddress.toLowerCase()))
       .enter()
       .append("circle")
-      .attr("r", 12)
+      .attr("r", 18)
       .attr("fill", "#6b7280") // Neutral gray for other nodes
       .attr("stroke", "#374151") // Darker gray stroke for other nodes
       .attr("stroke-width", 2);
@@ -119,7 +119,7 @@ export default function Home() {
       .data(classificationResult.graph.nodes.filter((d: NodeDatum) => d.label.toLowerCase() === walletAddress.toLowerCase()))
       .enter()
       .append("text")
-      .attr("font-size", "24px")
+      .attr("font-size", "48px")
       .attr("text-anchor", "middle")
       .attr("dy", "0.35em")
       .text((d: NodeDatum) => getFraudColor(classificationResult.fraud_probability).emoji)
@@ -232,7 +232,7 @@ export default function Home() {
       .data(classificationResult.graph.nodes)
       .enter()
       .append("text")
-      .attr("font-size", "10px")
+      .attr("font-size", "16px")
       .attr("fill", (d: NodeDatum) => {
         if (d.label.toLowerCase() === walletAddress.toLowerCase()) {
           return getFraudColor(classificationResult.fraud_probability).color;
@@ -293,7 +293,7 @@ export default function Home() {
             </svg>
             <div>
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">EthXpose</h1>
-              <p className="text-xs text-gray-400 hidden sm:block">Detect Fraudulent Ethereum wallets</p>
+              <p className="text-xs text-gray-400 hidden sm:block">Detect fraudulent Ethereum wallets</p>
             </div>
           </div>
           
