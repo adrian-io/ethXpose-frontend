@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
   title: "EthXpose - Ethereum Wallet Fraud Detection",
-  description: "Detect fraudulent Ethereum wallets using advanced machine learning algorithms and transaction graph analysis.",
+  description: "Detect fraudulent Ethereum wallets using machine learning on transaction graph embeddings.",
 };
 
 export default function RootLayout({

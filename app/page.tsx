@@ -20,15 +20,56 @@ interface EdgeDatum {
   timestamp: string;
 }
 
+const defaultResult = {
+  fraud_probability: 0.9940192741004935,
+  graph: {
+    nodes: [
+      { id: "0", label: "0xf6e5b93ca5392daeedda967517d41d22de76b9d5" },
+      { id: "1", label: "0x0a888f0f0b772e17a2adfd62d3f15cec72c8d42f" },
+      { id: "2", label: "0x1f0ba96d17a14aa0f255c6fcee195568ae477406" },
+      { id: "3", label: "0x0d35be8c62571d511315843e4512a47fdfccbbfd" },
+      { id: "4", label: "0xe892d7013d2857d95aa1b8d30cb7b5afaa9147a4" },
+      { id: "5", label: "0x42c8cfaf9b4033677916424c00018c7fa09f3c00" },
+      { id: "6", label: "0xdf366d2e1742a5a819765bb97864778f0bea033c" },
+      { id: "7", label: "0x748f4a52af4fb5c81f35674105d3ebc094b97e2b" },
+      { id: "8", label: "0x51dd014a10ed7b43e85c1ec78968dba3563ab7ee" },
+      { id: "9", label: "0xae6485b219427a1b77c8c6ad6284260274a0e104" },
+      { id: "10", label: "0x489f36b6bf469754287b58b71fbdde839d1d7005" },
+      { id: "11", label: "0xedb9f14e922e99a59b91d1ba0bdafb76765cb304" },
+      { id: "12", label: "0x62744aaf0dd297b7fadccbf67910ba5d259d7ad1" },
+      { id: "13", label: "0x8dbd5cf45d227d3e7e91baa02379b7f1d8dbaab6" },
+      { id: "14", label: "0x0513747583f67e7d435e965ef5c76b9c1c942ea2" },
+      { id: "15", label: "0x9c8409286f7e7f8775dece00e526f1a71b8b31e9" },
+      { id: "16", label: "0xe04ab7cde6f903d1dd259b6884bc0937aa9f9c22" },
+      { id: "17", label: "0xc2d81028bb66038ec8ef6b0a9914e190d545183d" },
+      { id: "18", label: "0x2091e0bc6f80c3423af41e98d0b7d4bf94371f26" }
+    ],
+    edges: [
+      { source: "0", target: "1", value: 0.0117574, timestamp: "2018-05-05 02:36:05" },
+      { source: "1", target: "2", value: 0.75, timestamp: "2018-05-06 06:07:31" },
+      { source: "1", target: "3", value: 0.19308909, timestamp: "2018-05-06 17:56:28" },
+      { source: "1", target: "4", value: 0.96960534, timestamp: "2018-05-06 21:51:11" },
+      { source: "1", target: "5", value: 0.1, timestamp: "2018-05-07 07:09:36" },
+      { source: "1", target: "6", value: 0.78, timestamp: "2018-05-07 07:41:22" },
+      { source: "1", target: "7", value: 2.09, timestamp: "2018-05-07 11:00:35" },
+      { source: "1", target: "8", value: 30.0, timestamp: "2018-05-07 23:34:46" },
+      { source: "1", target: "9", value: 0.8, timestamp: "2018-05-08 02:04:14" },
+      { source: "1", target: "10", value: 3.0, timestamp: "2018-05-08 02:54:52" },
+      { source: "1", target: "11", value: 0.18999, timestamp: "2018-05-10 06:36:53" },
+      { source: "1", target: "12", value: 1.0, timestamp: "2018-05-10 22:48:30" },
+      { source: "1", target: "13", value: 1.3, timestamp: "2018-05-11 11:27:30" },
+      { source: "1", target: "14", value: 1.15, timestamp: "2018-05-17 15:14:38" },
+      { source: "1", target: "15", value: 0.8, timestamp: "2018-05-13 19:15:27" },
+      { source: "1", target: "16", value: 1.3, timestamp: "2018-05-13 19:41:40" },
+      { source: "1", target: "17", value: 1.2, timestamp: "2018-05-16 10:40:16" },
+      { source: "1", target: "18", value: 31.02755383, timestamp: "2018-05-17 16:22:39" }
+    ]
+  }
+};
+
 export default function Home() {
   const [walletAddress, setWalletAddress] = useState("0x0a888f0f0b772e17a2adfd62d3f15cec72c8d42f");
-  const [classificationResult, setClassificationResult] = useState<{
-    fraud_probability: number;
-    graph: {
-      nodes: NodeDatum[];
-      edges: EdgeDatum[];
-    };
-  } | null>(null);
+  const [classificationResult, setClassificationResult] = useState(defaultResult);
   const [error, setError] = useState<string | null>(null);
 
   const getFraudColor = (probability: number) => {
