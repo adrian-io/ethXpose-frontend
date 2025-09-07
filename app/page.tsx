@@ -73,14 +73,17 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   const getFraudColor = (probability: number) => {
-    if (probability < 0.25) return { color: '#22c55e', label: 'Low Risk', emoji: '😊' }; // Green (bg-green-500)
-    if (probability < 0.75) return { color: '#f59e0b', label: 'Medium Risk', emoji: '🤔' }; // Orange/Yellow
-    return { color: '#ef4444', label: 'High Risk', emoji: '😈' }; // Red
+    if (probability < 0.25) return { color: '#22c55e', label: 'Low Risk', emoji: '😊' };
+    if (probability < 0.75) return { color: '#f59e0b', label: 'Medium Risk', emoji: '🤔' };
+    return { color: '#ef4444', label: 'High Risk', emoji: '😈' };
   };
+
+  const [loading, setLoading] = useState(false);
 
   const classifyWallet = async () => {
     setError(null);
     setClassificationResult(null);
+    setLoading(true); // 🔹 start loading
     try {
       const response = await axios.post("/api/classify", {
         wallet_address: walletAddress,
@@ -90,36 +93,53 @@ export default function Home() {
     } catch (err) {
       console.error("Error classifying wallet:", err);
       setError("Failed to classify the wallet. Please try again.");
+    } finally {
+      setLoading(false); // 🔹 stop loading
     }
   };
+  
 
-  const isValidEthereumAddress = (address: string) => {
-    return /^0x[a-fA-F0-9]{40}$/.test(address);
-  };
+  const isValidEthereumAddress = (address: string) => /^0x[a-fA-F0-9]{40}$/.test(address);
 
   useEffect(() => {
     if (!classificationResult) return;
+  
+    const header = document.getElementById("header");
+    const footer = document.getElementById("footer");
+    const resultLabel = document.getElementById("result-label");
 
-    const svg = d3.select("#graph");
-    const width = 800;
-    const height = 600;
+  
+    const getContainerSize = () => {
+      const headerHeight = header ? header.offsetHeight : 0;
+      const footerHeight = footer ? footer.offsetHeight : 0;
+      const labelHeight = resultLabel ? resultLabel.offsetHeight : 0;
+  
+      return {
+        width: window.innerWidth,
+        height: window.innerHeight - headerHeight - footerHeight - labelHeight - 32, // 16px extra spacing for margins
+      };
+    };
 
+    const { width: containerWidth, height: containerHeight } = getContainerSize();
+  
+    const svg = d3.select("#graph")
+      .attr("width", containerWidth)
+      .attr("height", containerHeight);
+  
     svg.selectAll("*").remove();
-
+  
     const simulation = d3
       .forceSimulation<NodeDatum>(classificationResult.graph.nodes)
       .force(
         "link",
-        d3
-          .forceLink<NodeDatum, EdgeDatum>(classificationResult.graph.edges)
-          .id((d: NodeDatum) => d.id)
+        d3.forceLink<NodeDatum, EdgeDatum>(classificationResult.graph.edges)
+          .id(d => d.id)
           .distance(100)
       )
-      .force("charge", d3.forceManyBody().strength(-200))
-      .force("center", d3.forceCenter(width / 2, height / 2));
-
-    const link = svg
-      .append("g")
+      .force("charge", d3.forceManyBody().strength(-400))
+      .force("center", d3.forceCenter(containerWidth / 2, containerHeight / 2));
+  
+    const link = svg.append("g")
       .selectAll("line")
       .data(classificationResult.graph.edges)
       .enter()
@@ -127,195 +147,151 @@ export default function Home() {
       .attr("stroke", "#555")
       .attr("stroke-opacity", 0.6)
       .attr("stroke-width", 2);
-
-    // Create tooltip for edge labels (hidden by default)
-    const edgeTooltip = svg
-      .append("g")
+  
+    const edgeLabels = svg.append("g")
       .selectAll("text")
       .data(classificationResult.graph.edges)
       .enter()
       .append("text")
-      .attr("font-size", "16px")
-      .attr("fill", "#e5e7eb")
+      .attr("font-size", "12px")
+      .attr("fill", "#facc15")
       .attr("text-anchor", "middle")
-      .attr("opacity", 0)
-      .text((d: EdgeDatum) => `${d.value} ETH • ${new Date(d.timestamp).toLocaleDateString()}`);
-
-    // Create circles for non-central nodes
-    const otherNodes = svg
-      .append("g")
+      .style("opacity", 0)
+      .text(d => `${d.value} ETH on ${new Date(d.timestamp).toLocaleDateString()}`);
+  
+    const otherNodes = svg.append("g")
       .selectAll("circle")
-      .data(classificationResult.graph.nodes.filter((d: NodeDatum) => d.label.toLowerCase() !== walletAddress.toLowerCase()))
+      .data(classificationResult.graph.nodes.filter(d => d.label.toLowerCase() !== walletAddress.toLowerCase()))
       .enter()
       .append("circle")
       .attr("r", 18)
-      .attr("fill", "#6b7280") // Neutral gray for other nodes
-      .attr("stroke", "#374151") // Darker gray stroke for other nodes
-      .attr("stroke-width", 2);
-
-    // Create emoji for central node
-    const centralNode = svg
-      .append("g")
+      .attr("fill", "#6b7280")
+      .attr("stroke", "#374151")
+      .attr("stroke-width", 2)
+      .call(d3.drag<SVGCircleElement, NodeDatum>()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended));
+  
+    const centralNode = svg.append("g")
       .selectAll("text")
-      .data(classificationResult.graph.nodes.filter((d: NodeDatum) => d.label.toLowerCase() === walletAddress.toLowerCase()))
+      .data(classificationResult.graph.nodes.filter(d => d.label.toLowerCase() === walletAddress.toLowerCase()))
       .enter()
       .append("text")
-      .attr("font-size", "48px")
+      .attr("font-size", "50px")
       .attr("text-anchor", "middle")
       .attr("dy", "0.35em")
-      .text((d: NodeDatum) => getFraudColor(classificationResult.fraud_probability).emoji)
-      .on("mouseover", function(event: any, d: NodeDatum) {
-        // Highlight connected edges
-        link
-          .transition()
-          .duration(200)
-          .attr("stroke-opacity", (edgeData: EdgeDatum) => {
-            const source = (edgeData.source as NodeDatum).label || edgeData.source;
-            const target = (edgeData.target as NodeDatum).label || edgeData.target;
-            return (source === d.label || target === d.label) ? 1 : 0.2;
-          })
-          .attr("stroke-width", (edgeData: EdgeDatum) => {
-            const source = (edgeData.source as NodeDatum).label || edgeData.source;
-            const target = (edgeData.target as NodeDatum).label || edgeData.target;
-            return (source === d.label || target === d.label) ? 3 : 2;
-          });
-        
-        // Show edge labels for connected edges
-        edgeTooltip
-          .transition()
-          .duration(200)
-          .attr("opacity", (edgeData: EdgeDatum) => {
-            const source = (edgeData.source as NodeDatum).label || edgeData.source;
-            const target = (edgeData.target as NodeDatum).label || edgeData.target;
-            return (source === d.label || target === d.label) ? 1 : 0;
-          });
-      })
-      .on("mouseout", function(event: any, d: NodeDatum) {
-        // Reset edge appearance
-        link
-          .transition()
-          .duration(200)
-          .attr("stroke-opacity", 0.6)
-          .attr("stroke-width", 2);
-        
-        // Hide edge labels
-        edgeTooltip
-          .transition()
-          .duration(200)
-          .attr("opacity", 0);
-      });
-
-    // Add hover interactions to all nodes
-    otherNodes
-      .on("mouseover", function(event: any, d: NodeDatum) {
-        // Highlight connected edges
-        link
-          .transition()
-          .duration(200)
-          .attr("stroke-opacity", (edgeData: EdgeDatum) => {
-            const source = (edgeData.source as NodeDatum).label || edgeData.source;
-            const target = (edgeData.target as NodeDatum).label || edgeData.target;
-            return (source === d.label || target === d.label) ? 1 : 0.2;
-          })
-          .attr("stroke-width", (edgeData: EdgeDatum) => {
-            const source = (edgeData.source as NodeDatum).label || edgeData.source;
-            const target = (edgeData.target as NodeDatum).label || edgeData.target;
-            return (source === d.label || target === d.label) ? 3 : 2;
-          });
-        
-        // Show edge labels for connected edges
-        edgeTooltip
-          .transition()
-          .duration(200)
-          .attr("opacity", (edgeData: EdgeDatum) => {
-            const source = (edgeData.source as NodeDatum).label || edgeData.source;
-            const target = (edgeData.target as NodeDatum).label || edgeData.target;
-            return (source === d.label || target === d.label) ? 1 : 0;
-          });
-      })
-      .on("mouseout", function(event: any, d: NodeDatum) {
-        // Reset edge appearance
-        link
-          .transition()
-          .duration(200)
-          .attr("stroke-opacity", 0.6)
-          .attr("stroke-width", 2);
-        
-        // Hide edge labels
-        edgeTooltip
-          .transition()
-          .duration(200)
-          .attr("opacity", 0);
-      })
-      .call(
-        d3
-          .drag<SVGCircleElement, NodeDatum>()
-          .on("start", (event: any, d: NodeDatum) => {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = event.x;
-            d.fy = event.y;
-          })
-          .on("drag", (event: any, d: NodeDatum) => {
-            d.fx = event.x;
-            d.fy = event.y;
-          })
-          .on("end", (event: any, d: NodeDatum) => {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-          })
-      );
-
-    // Create node labels (always visible)
-    const nodeLabels = svg
-      .append("g")
+      .text(() => getFraudColor(classificationResult.fraud_probability).emoji)
+      .call(d3.drag<SVGTextElement, NodeDatum>()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended));
+  
+    const nodeLabels = svg.append("g")
       .selectAll("text")
       .data(classificationResult.graph.nodes)
       .enter()
       .append("text")
-      .attr("font-size", "16px")
-      .attr("fill", (d: NodeDatum) => {
-        if (d.label.toLowerCase() === walletAddress.toLowerCase()) {
-          return getFraudColor(classificationResult.fraud_probability).color;
-        }
-        return "#d1d5db"; // Light gray for other nodes
-      })
+      .attr("font-size", "14px")
+      .attr("fill", d => d.label.toLowerCase() === walletAddress.toLowerCase()
+        ? getFraudColor(classificationResult.fraud_probability).color
+        : "#d1d5db")
       .attr("text-anchor", "middle")
       .attr("dy", -25)
-      .text((d: NodeDatum) => d.label);
-
+      .text(d => d.label);
+  
+    function highlightNode(this: any, event: any, d: NodeDatum) {
+      otherNodes.attr("fill", "#9ca3af").style("opacity", 0.2);
+      centralNode.style("opacity", 0.2);
+      link.attr("stroke", "#9ca3af").style("opacity", 0.1);
+      nodeLabels.attr("fill", "#9ca3af").style("opacity", 0.2);
+      edgeLabels.style("opacity", 0);
+  
+      d3.select(this).attr("fill", "#6b7280").style("opacity", 1);
+  
+      link.filter(l => (l.source as NodeDatum).id === d.id || (l.target as NodeDatum).id === d.id)
+        .attr("stroke", "#facc15")
+        .style("opacity", 1)
+        .each(function(l: EdgeDatum) {
+          otherNodes.filter(n => n.id === (l.source as NodeDatum).id || n.id === (l.target as NodeDatum).id)
+            .attr("fill", "#6b7280")
+            .style("opacity", 1);
+          nodeLabels.filter(n => n.id === (l.source as NodeDatum).id || n.id === (l.target as NodeDatum).id)
+            .attr("fill", "#ffffff")
+            .style("opacity", 1);
+          edgeLabels.filter(e => e === l).style("opacity", 1);
+        });
+  
+      nodeLabels.filter(n => n.label.toLowerCase() === walletAddress.toLowerCase())
+        .attr("fill", getFraudColor(classificationResult.fraud_probability).color)
+        .style("opacity", 1);
+  
+      centralNode.style("opacity", 1);
+    }
+  
+    function resetHighlight() {
+      otherNodes.attr("fill", "#6b7280").style("opacity", 1);
+      centralNode.style("opacity", 1);
+      link.attr("stroke", "#555").style("opacity", 0.6);
+      nodeLabels.attr("fill", d => d.label.toLowerCase() === walletAddress.toLowerCase()
+        ? getFraudColor(classificationResult.fraud_probability).color
+        : "#d1d5db").style("opacity", 1);
+      edgeLabels.style("opacity", 0);
+    }
+  
+    otherNodes.on("mouseover", highlightNode).on("mouseout", resetHighlight);
+    centralNode.on("mouseover", highlightNode).on("mouseout", resetHighlight);
+  
+    function dragstarted(event: any, d: NodeDatum) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+  
+    function dragged(event: any, d: NodeDatum) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
+  
+    function dragended(event: any, d: NodeDatum) {
+      if (!event.active) simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    }
+  
     simulation.on("tick", () => {
       link
-        .attr("x1", (d: EdgeDatum) => ((d.source as unknown) as NodeDatum).x!)
-        .attr("y1", (d: EdgeDatum) => ((d.source as unknown) as NodeDatum).y!)
-        .attr("x2", (d: EdgeDatum) => ((d.target as unknown) as NodeDatum).x!)
-        .attr("y2", (d: EdgeDatum) => ((d.target as unknown) as NodeDatum).y!);
-
-      edgeTooltip
-        .attr("x", (d: EdgeDatum) =>
-          ((((d.source as unknown) as NodeDatum).x! +
-            ((d.target as unknown) as NodeDatum).x!) /
-            2)
-        )
-        .attr("y", (d: EdgeDatum) =>
-          ((((d.source as unknown) as NodeDatum).y! +
-            ((d.target as unknown) as NodeDatum).y!) /
-            2)
-        );
-
-      // Position circles for other nodes
-      otherNodes.attr("cx", (d: NodeDatum) => d.x as number).attr("cy", (d: NodeDatum) => d.y as number);
-      
-      // Position emoji for central node
-      centralNode.attr("x", (d: NodeDatum) => d.x as number).attr("y", (d: NodeDatum) => d.y as number);
-
-      nodeLabels.attr("x", (d: NodeDatum) => d.x as number).attr("y", (d: NodeDatum) => d.y as number);
+        .attr("x1", d => (d.source as NodeDatum).x!)
+        .attr("y1", d => (d.source as NodeDatum).y!)
+        .attr("x2", d => (d.target as NodeDatum).x!)
+        .attr("y2", d => (d.target as NodeDatum).y!);
+  
+      edgeLabels
+        .attr("x", d => ((d.source as NodeDatum).x! + (d.target as NodeDatum).x!) / 2)
+        .attr("y", d => ((d.source as NodeDatum).y! + (d.target as NodeDatum).y!) / 2);
+  
+      otherNodes.attr("cx", d => d.x!).attr("cy", d => d.y!);
+      centralNode.attr("x", d => d.x!).attr("y", d => d.y!);
+      nodeLabels.attr("x", d => d.x!).attr("y", d => d.y!);
     });
+  
+    // 🔹 Responsive: update SVG size on window resize
+    const handleResize = () => {
+      const { width, height } = getContainerSize();
+      svg.attr("width", width).attr("height", height);
+      simulation.force("center", d3.forceCenter(width / 2, height / 2));
+      simulation.alpha(0.3).restart();
+    };
+  
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  
   }, [classificationResult]);
+  
 
   return (
     <div className="bg-gray-900 text-white min-h-screen flex flex-col">
-      <header className="w-full py-3 px-4 bg-gray-800 shadow-md">
+      <header id="header" className="w-full py-3 px-4 bg-gray-800 shadow-md">
         {/* Mobile-first responsive header */}
         <div className="flex flex-col items-center space-y-2 sm:flex-row sm:justify-between sm:items-center sm:space-y-0">
           {/* Logo and EthXpose title */}
@@ -351,7 +327,7 @@ export default function Home() {
 
       <main className="flex-grow flex flex-col items-center justify-start px-2 sm:px-4 space-y-4 sm:space-y-6">
         {classificationResult && (
-          <div className="mt-4 sm:mt-6 text-center px-2">
+          <div id="result-label" className="mt-4 sm:mt-6 text-center px-2">
             <p 
               className="text-lg sm:text-xl font-semibold"
               style={{ color: getFraudColor(classificationResult.fraud_probability).color }}
@@ -366,16 +342,21 @@ export default function Home() {
             </p>
           </div>
         )}
-        <svg
-          id="graph"
-          className="mt-4 sm:mt-8 w-full max-w-full"
-          height="400"
-          viewBox="0 0 800 600"
-          preserveAspectRatio="xMidYMid meet"
-        />
+        {loading ? (
+          <div className="mt-4 sm:mt-8 flex flex-col items-center justify-center w-full h-64 space-y-4">
+            {/* Spinner */}
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-yellow-400"></div>
+            {/* Message */}
+            <p className="text-center text-sm text-gray-300">
+              The first request may take some time to wake up the server...
+            </p>
+          </div>
+        ) : (
+          <svg id="graph" className="mt-4 sm:mt-8 w-full h-full" />
+        )}
       </main>
 
-      <footer className="w-full py-4 sm:py-6 bg-gray-800 shadow-md text-center">
+      <footer id="footer" className="w-full py-4 sm:py-6 bg-gray-800 shadow-md text-center">
         <div className="flex flex-col items-center space-y-3 sm:space-y-4 w-full max-w-4xl mx-auto px-2 sm:px-4">
           <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4 w-full justify-center">
             <div className="relative w-full sm:w-auto">
