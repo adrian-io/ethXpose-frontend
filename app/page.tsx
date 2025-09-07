@@ -69,11 +69,18 @@ const defaultResult = {
 
 export default function Home() {
   const [walletAddress, setWalletAddress] = useState("0x0a888f0f0b772e17a2adfd62d3f15cec72c8d42f");
-  const [classificationResult, setClassificationResult] = useState(defaultResult);
+  const [classificationResult, setClassificationResult] = useState<{
+    fraud_probability: number;
+    graph: {
+      nodes: { id: string; label: string }[];
+      edges: { source: string; target: string; value: number; timestamp: string }[];
+    };
+  } | null>(defaultResult);
+  
   const [error, setError] = useState<string | null>(null);
 
   const getFraudColor = (probability: number) => {
-    if (probability < 0.25) return { color: '#22c55e', label: 'Low Risk', emoji: '😊' };
+    if (probability < 0.25) return { color: '#22c55e', label: 'Low Risk', emoji: '😇' };
     if (probability < 0.75) return { color: '#f59e0b', label: 'Medium Risk', emoji: '🤔' };
     return { color: '#ef4444', label: 'High Risk', emoji: '😈' };
   };
@@ -83,7 +90,7 @@ export default function Home() {
   const classifyWallet = async () => {
     setError(null);
     setClassificationResult(null);
-    setLoading(true); // 🔹 start loading
+    setLoading(true);
     try {
       const response = await axios.post("/api/classify", {
         wallet_address: walletAddress,
@@ -94,7 +101,7 @@ export default function Home() {
       console.error("Error classifying wallet:", err);
       setError("Failed to classify the wallet. Please try again.");
     } finally {
-      setLoading(false); // 🔹 stop loading
+      setLoading(false);
     }
   };
   
@@ -116,7 +123,7 @@ export default function Home() {
   
       return {
         width: window.innerWidth,
-        height: window.innerHeight - headerHeight - footerHeight - labelHeight - 32, // 16px extra spacing for margins
+        height: window.innerHeight - headerHeight - footerHeight - labelHeight - 32,
       };
     };
 
@@ -209,11 +216,11 @@ export default function Home() {
   
       d3.select(this).attr("fill", "#6b7280").style("opacity", 1);
   
-      link.filter(l => (l.source as NodeDatum).id === d.id || (l.target as NodeDatum).id === d.id)
+      link.filter(l => (l.source as unknown as NodeDatum).id === d.id || (l.target as unknown as NodeDatum).id === d.id)
         .attr("stroke", "#facc15")
         .style("opacity", 1)
         .each(function(l: EdgeDatum) {
-          otherNodes.filter(n => n.id === (l.source as NodeDatum).id || n.id === (l.target as NodeDatum).id)
+          otherNodes.filter(n => n.id === (l.source as unknown as NodeDatum).id || n.id === (l.target as unknown as NodeDatum).id)
             .attr("fill", "#6b7280")
             .style("opacity", 1);
           nodeLabels.filter(n => n.id === (l.source as NodeDatum).id || n.id === (l.target as NodeDatum).id)
@@ -223,7 +230,7 @@ export default function Home() {
         });
   
       nodeLabels.filter(n => n.label.toLowerCase() === walletAddress.toLowerCase())
-        .attr("fill", getFraudColor(classificationResult.fraud_probability).color)
+        .attr("fill", getFraudColor(classificationResult?.fraud_probability ?? 0).color)
         .style("opacity", 1);
   
       centralNode.style("opacity", 1);
@@ -233,46 +240,68 @@ export default function Home() {
       otherNodes.attr("fill", "#6b7280").style("opacity", 1);
       centralNode.style("opacity", 1);
       link.attr("stroke", "#555").style("opacity", 0.6);
-      nodeLabels.attr("fill", d => d.label.toLowerCase() === walletAddress.toLowerCase()
-        ? getFraudColor(classificationResult.fraud_probability).color
-        : "#d1d5db").style("opacity", 1);
+      nodeLabels.attr("fill", d =>
+        d.label.toLowerCase() === walletAddress.toLowerCase()
+          ? getFraudColor(classificationResult?.fraud_probability ?? 0).color
+          : "#d1d5db"
+      ).style("opacity", 1);      
       edgeLabels.style("opacity", 0);
     }
   
-    otherNodes.on("mouseover", highlightNode).on("mouseout", resetHighlight);
-    centralNode.on("mouseover", highlightNode).on("mouseout", resetHighlight);
-  
+    otherNodes.on("mouseover", highlightNode)
+          .on("mouseout", (event, d) => {
+              if (!isDragging) resetHighlight();
+          });
+
+    centralNode.on("mouseover", highlightNode)
+              .on("mouseout", (event, d) => {
+                  if (!isDragging) resetHighlight();
+              });
+
+    let isDragging = false;
+
     function dragstarted(event: any, d: NodeDatum) {
+      isDragging = true;
       if (!event.active) simulation.alphaTarget(0.3).restart();
       d.fx = d.x;
       d.fy = d.y;
     }
-  
+    
     function dragged(event: any, d: NodeDatum) {
       d.fx = event.x;
       d.fy = event.y;
     }
-  
+    
     function dragended(event: any, d: NodeDatum) {
+      isDragging = false;   // mark dragging as done
       if (!event.active) simulation.alphaTarget(0);
       d.fx = null;
       d.fy = null;
     }
   
     simulation.on("tick", () => {
-      link
-        .attr("x1", d => (d.source as NodeDatum).x!)
-        .attr("y1", d => (d.source as NodeDatum).y!)
-        .attr("x2", d => (d.target as NodeDatum).x!)
-        .attr("y2", d => (d.target as NodeDatum).y!);
-  
-      edgeLabels
-        .attr("x", d => ((d.source as NodeDatum).x! + (d.target as NodeDatum).x!) / 2)
-        .attr("y", d => ((d.source as NodeDatum).y! + (d.target as NodeDatum).y!) / 2);
-  
-      otherNodes.attr("cx", d => d.x!).attr("cy", d => d.y!);
-      centralNode.attr("x", d => d.x!).attr("y", d => d.y!);
-      nodeLabels.attr("x", d => d.x!).attr("y", d => d.y!);
+  link
+    .attr("x1", d => ((d.source as unknown) as NodeDatum).x!)
+    .attr("y1", d => ((d.source as unknown) as NodeDatum).y!)
+    .attr("x2", d => ((d.target as unknown) as NodeDatum).x!)
+    .attr("y2", d => ((d.target as unknown) as NodeDatum).y!);
+
+  edgeLabels
+    .attr("x", d => (
+      (((d.source as unknown) as NodeDatum).x! + ((d.target as unknown) as NodeDatum).x!) / 2
+    ))
+    .attr("y", d => (
+      (((d.source as unknown) as NodeDatum).y! + ((d.target as unknown) as NodeDatum).y!) / 2
+    ));
+
+    otherNodes.attr("cx", d => (d as NodeDatum).x!)
+    .attr("cy", d => (d as NodeDatum).y!);
+
+    centralNode.attr("x", d => (d as NodeDatum).x!)
+        .attr("y", d => (d as NodeDatum).y!);
+
+    nodeLabels.attr("x", d => (d as NodeDatum).x!)
+        .attr("y", d => (d as NodeDatum).y!);
     });
   
     // 🔹 Responsive: update SVG size on window resize
@@ -348,7 +377,7 @@ export default function Home() {
             <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-yellow-400"></div>
             {/* Message */}
             <p className="text-center text-sm text-gray-300">
-              The first request may take some time to wake up the server...
+              The first request may take up to 1 minute to wake up the server...
             </p>
           </div>
         ) : (
